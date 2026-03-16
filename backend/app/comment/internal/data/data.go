@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/b022mc/b022mc.github.io/backend/app/comment/internal/conf"

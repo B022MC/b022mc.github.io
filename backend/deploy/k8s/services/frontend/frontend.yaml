@@ -30,10 +30,10 @@ spec:
               value: "http://blog-api.blog.svc.cluster.local:8080"
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "32Mi"
+              cpu: "10m"
             limits:
-              memory: "256Mi"
+              memory: "128Mi"
               cpu: "200m"
           readinessProbe:
             httpGet:
