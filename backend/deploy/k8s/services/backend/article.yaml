@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: article
+  namespace: blog
+  labels:
+    app: article
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: article
+  template:
+    metadata:
+      labels:
+        app: article
+    spec:
+      containers:
+        - name: article
+          image: ghcr.io/b022mc/blog-article:latest
+          ports:
+            - containerPort: 9001
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs/config.yaml
+              subPath: config.yaml
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            tcpSocket:
+              port: 9001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: article-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: article
+  namespace: blog
+spec:
+  selector:
+    app: article
+  ports:
+    - port: 9001
+      targetPort: 9001
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: article-config
+  namespace: blog
+data:
+  config.yaml: |
+    server:
+      grpc:
+        addr: 0.0.0.0:9001
+    data:
+      database:
+        source: root:blogB022.@tcp(mysql.blog.svc.cluster.local:3306)/blog?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+      redis:
+        addr: redis.blog.svc.cluster.local:6379
+        password: blogB022.

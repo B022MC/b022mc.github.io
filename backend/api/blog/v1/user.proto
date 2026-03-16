@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package blog.v1;
+
+option go_package = "github.com/b022mc/b022mc.github.io/backend/api/blog/v1;v1";
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  rpc Register(RegisterRequest) returns (AuthReply);
+  rpc Login(LoginRequest) returns (AuthReply);
+  rpc GetUser(GetUserRequest) returns (UserReply);
+  rpc VerifyToken(VerifyTokenRequest) returns (UserReply);
+}
+
+message User {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string avatar = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthReply {
+  string token = 1;
+  User user = 2;
+}
+
+message GetUserRequest {
+  int64 id = 1;
+}
+
+message VerifyTokenRequest {
+  string token = 1;
+}
+
+message UserReply {
+  User user = 1;
+}

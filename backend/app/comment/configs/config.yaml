@@ -1,0 +1,7 @@
+server:
+  grpc:
+    addr: "0.0.0.0:9003"
+
+data:
+  database:
+    source: "root:root@tcp(127.0.0.1:3306)/blog?charset=utf8mb4&parseTime=true&loc=Local"

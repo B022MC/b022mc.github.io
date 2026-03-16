@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-init-schema
+  namespace: blog
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: mysql:8.0
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: blog-secrets
+                  key: mysql-root-password
+          command:
+            - sh
+            - -c
+            - |
+              mysql -h mysql.blog.svc.cluster.local -u root <<'SQL'
+              CREATE DATABASE IF NOT EXISTS blog CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+              USE blog;
+
+              CREATE TABLE IF NOT EXISTS articles (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                slug VARCHAR(255) NOT NULL UNIQUE,
+                title VARCHAR(500) NOT NULL,
+                summary TEXT,
+                content LONGTEXT,
+                cover_image VARCHAR(1000) DEFAULT '',
+                tags VARCHAR(1000) DEFAULT '',
+                view_count BIGINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_slug (slug),
+                INDEX idx_created_at (created_at),
+                FULLTEXT INDEX idx_search (title, content)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+              CREATE TABLE IF NOT EXISTS users (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(100) NOT NULL UNIQUE,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                avatar VARCHAR(1000) DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_username (username)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+              CREATE TABLE IF NOT EXISTS comments (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                article_id BIGINT NOT NULL,
+                parent_id BIGINT DEFAULT 0,
+                user_id BIGINT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_article_id (article_id),
+                INDEX idx_parent_id (parent_id)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+              SQL

@@ -1,0 +1,14 @@
+server:
+  http:
+    addr: 0.0.0.0:8080
+
+services:
+  article:
+    addr: 127.0.0.1:9001
+  user:
+    addr: 127.0.0.1:9002
+  comment:
+    addr: 127.0.0.1:9003
+
+auth:
+  secret: blog-jwt-secret-key-2026

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package blog.v1;
+
+option go_package = "github.com/b022mc/b022mc.github.io/backend/api/blog/v1;v1";
+
+import "google/protobuf/timestamp.proto";
+
+service ArticleService {
+  rpc CreateArticle(CreateArticleRequest) returns (ArticleReply);
+  rpc UpdateArticle(UpdateArticleRequest) returns (ArticleReply);
+  rpc DeleteArticle(DeleteArticleRequest) returns (EmptyReply);
+  rpc GetArticle(GetArticleRequest) returns (ArticleReply);
+  rpc ListArticles(ListArticlesRequest) returns (ListArticlesReply);
+  rpc SearchArticles(SearchArticlesRequest) returns (ListArticlesReply);
+  rpc ListTags(EmptyRequest) returns (ListTagsReply);
+}
+
+message EmptyRequest {}
+message EmptyReply {}
+
+message Article {
+  int64 id = 1;
+  string slug = 2;
+  string title = 3;
+  string summary = 4;
+  string content = 5;
+  string cover_image = 6;
+  repeated string tags = 7;
+  int64 view_count = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateArticleRequest {
+  string title = 1;
+  string summary = 2;
+  string content = 3;
+  string cover_image = 4;
+  repeated string tags = 5;
+}
+
+message UpdateArticleRequest {
+  int64 id = 1;
+  string title = 2;
+  string summary = 3;
+  string content = 4;
+  string cover_image = 5;
+  repeated string tags = 6;
+}
+
+message DeleteArticleRequest {
+  int64 id = 1;
+}
+
+message GetArticleRequest {
+  string slug = 1;
+}
+
+message ArticleReply {
+  Article article = 1;
+}
+
+message ListArticlesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string tag = 3;
+}
+
+message SearchArticlesRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListArticlesReply {
+  repeated Article items = 1;
+  int64 total = 2;
+}
+
+message ListTagsReply {
+  repeated string tags = 1;
+}
