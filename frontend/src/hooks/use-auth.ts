@@ -14,8 +14,10 @@ export function useAuth() {
     const savedToken = localStorage.getItem(TOKEN_KEY);
     const savedUser = localStorage.getItem(USER_KEY);
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      requestAnimationFrame(() => {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+      });
     }
   }, []);
 

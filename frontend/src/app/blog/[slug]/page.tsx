@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, Eye, Tag, Clock } from "lucide-react";
 import Link from "next/link";
-import { mockArticles, type Article } from "@/lib/api";
-import { renderMarkdown, extractTOC, type TOCItem } from "@/lib/markdown";
+import { mockArticles } from "@/lib/api";
+import { renderMarkdown, extractTOC } from "@/lib/markdown";
 import { formatDate, estimateReadingTime } from "@/lib/utils";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
@@ -17,18 +17,23 @@ export default function BlogDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const [article, setArticle] = useState<Article | null>(null);
   const [htmlContent, setHtmlContent] = useState("");
-  const [tocItems, setTocItems] = useState<TOCItem[]>([]);
+
+  const article = useMemo(
+    () => mockArticles.find((a) => a.slug === slug) ?? null,
+    [slug],
+  );
+
+  const tocItems = useMemo(
+    () => (article ? extractTOC(article.content) : []),
+    [article],
+  );
 
   useEffect(() => {
-    const found = mockArticles.find((a) => a.slug === slug);
-    if (found) {
-      setArticle(found);
-      setTocItems(extractTOC(found.content));
-      renderMarkdown(found.content).then(setHtmlContent);
+    if (article) {
+      renderMarkdown(article.content).then(setHtmlContent);
     }
-  }, [slug]);
+  }, [article]);
 
   if (!article) {
     return (
