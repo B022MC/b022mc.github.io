@@ -195,11 +195,13 @@ jobs:
 
             k3s kubectl -n blog wait --for=condition=ready pod -l app=mysql --timeout=180s
 
-            k3s kubectl apply -f - <<'INIT'
+            # Only run init job if it doesn't already exist (idempotent)
+            if ! k3s kubectl -n blog get job/mysql-init-schema &>/dev/null; then
+              k3s kubectl apply -f - <<'INIT'
             ${{ steps.manifests.outputs.middleware_init }}
             INIT
-
-            k3s kubectl -n blog wait --for=condition=complete job/mysql-init-schema --timeout=120s
+              k3s kubectl -n blog wait --for=condition=complete job/mysql-init-schema --timeout=120s
+            fi
 
             k3s kubectl apply -f - <<'BACKEND'
             ${{ steps.manifests.outputs.backend_services }}

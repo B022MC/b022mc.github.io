@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: init
-          image: ghcr.io/b022mc/mysql:8.0
+          image: mysql:8.0
           env:
             - name: MYSQL_PWD
               valueFrom:
