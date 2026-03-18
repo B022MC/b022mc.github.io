@@ -1,9 +1,9 @@
-import { mockArticles } from "@/lib/api";
+import { fetchArticles } from "@/lib/api";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://b022mc.github.io";
 
 export async function GET() {
-  const articles = mockArticles;
+  const { items: articles } = await fetchArticles(1, 50);
 
   const items = articles
     .map(

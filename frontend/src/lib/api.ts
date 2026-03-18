@@ -110,7 +110,6 @@ export const api = {
   },
 };
 
-// Mock data for development before backend is ready
 export const mockArticles: Article[] = [
   {
     id: 1,
@@ -168,3 +167,68 @@ export const mockArticles: Article[] = [
     viewCount: 175,
   },
 ];
+
+/**
+ * Fetches articles from the real API, falling back to mock data
+ * when the backend is unavailable (e.g. local development without backend).
+ */
+export async function fetchArticles(
+  page = 1,
+  pageSize = 10,
+  tag?: string,
+): Promise<PaginatedResponse<Article>> {
+  try {
+    return await api.articles.list(page, pageSize, tag);
+  } catch {
+    const filtered = tag
+      ? mockArticles.filter((a) => a.tags.includes(tag))
+      : mockArticles;
+    const start = (page - 1) * pageSize;
+    return {
+      items: filtered.slice(start, start + pageSize),
+      total: filtered.length,
+      page,
+      pageSize,
+    };
+  }
+}
+
+export async function fetchArticle(slug: string): Promise<Article | null> {
+  try {
+    return await api.articles.get(slug);
+  } catch {
+    return mockArticles.find((a) => a.slug === slug) ?? null;
+  }
+}
+
+export async function searchArticles(
+  q: string,
+  page = 1,
+): Promise<PaginatedResponse<Article>> {
+  try {
+    return await api.articles.search(q, page);
+  } catch {
+    const lower = q.toLowerCase();
+    const filtered = mockArticles.filter(
+      (a) =>
+        a.title.toLowerCase().includes(lower) ||
+        a.summary.toLowerCase().includes(lower),
+    );
+    return {
+      items: filtered.slice((page - 1) * 10, page * 10),
+      total: filtered.length,
+      page,
+      pageSize: 10,
+    };
+  }
+}
+
+export async function fetchTags(): Promise<string[]> {
+  try {
+    return await api.tags.list();
+  } catch {
+    const tagSet = new Set<string>();
+    mockArticles.forEach((a) => a.tags.forEach((t) => tagSet.add(t)));
+    return Array.from(tagSet).sort();
+  }
+}

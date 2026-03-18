@@ -1,12 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowDown, Search } from "lucide-react";
-import { useState } from "react";
+import { ArrowDown, Search, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArticleCard } from "@/components/blog/article-card";
 import { FadeIn } from "@/components/animation/fade-in";
-import { mockArticles } from "@/lib/api";
+import { fetchArticles } from "@/lib/api";
+import type { Article } from "@/lib/api";
 
 const typewriterText = "Code, Think, Share.";
 
@@ -129,7 +130,14 @@ function HeroSection() {
 }
 
 export default function HomePage() {
-  const articles = mockArticles;
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchArticles(1, 10)
+      .then((res) => setArticles(res.items))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <>
@@ -140,22 +148,32 @@ export default function HomePage() {
           <h2 className="mb-8 text-2xl font-bold tracking-tight">最新文章</h2>
         </FadeIn>
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          variants={{
-            hidden: {},
-            visible: {
-              transition: { staggerChildren: 0.1 },
-            },
-          }}
-          className="flex flex-col gap-4"
-        >
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </motion.div>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-muted-foreground">暂无文章</p>
+          </div>
+        ) : (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={{
+              hidden: {},
+              visible: {
+                transition: { staggerChildren: 0.1 },
+              },
+            }}
+            className="flex flex-col gap-4"
+          >
+            {articles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </motion.div>
+        )}
       </section>
     </>
   );

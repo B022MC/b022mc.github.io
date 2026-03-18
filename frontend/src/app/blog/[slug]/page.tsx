@@ -2,9 +2,10 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Eye, Tag, Clock } from "lucide-react";
+import { ArrowLeft, Calendar, Eye, Tag, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { mockArticles } from "@/lib/api";
+import { fetchArticle } from "@/lib/api";
+import type { Article } from "@/lib/api";
 import { renderMarkdown, extractTOC } from "@/lib/markdown";
 import { formatDate, estimateReadingTime } from "@/lib/utils";
 import { ReadingProgress } from "@/components/blog/reading-progress";
@@ -17,12 +18,20 @@ export default function BlogDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
+  const [article, setArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(true);
   const [htmlContent, setHtmlContent] = useState("");
 
-  const article = useMemo(
-    () => mockArticles.find((a) => a.slug === slug) ?? null,
-    [slug],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    fetchArticle(slug).then((a) => {
+      if (!cancelled) {
+        setArticle(a);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [slug]);
 
   const tocItems = useMemo(
     () => (article ? extractTOC(article.content) : []),
@@ -34,6 +43,14 @@ export default function BlogDetailPage({
       renderMarkdown(article.content).then(setHtmlContent);
     }
   }, [article]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!article) {
     return (

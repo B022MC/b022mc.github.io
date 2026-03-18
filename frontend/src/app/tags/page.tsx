@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Tag, Search } from "lucide-react";
-import { mockArticles } from "@/lib/api";
+import { Tag, Search, Loader2 } from "lucide-react";
+import { fetchArticles, fetchTags, searchArticles } from "@/lib/api";
+import type { Article } from "@/lib/api";
 import { ArticleCard } from "@/components/blog/article-card";
 import { PageTransition } from "@/components/animation/page-transition";
 
@@ -15,28 +16,34 @@ function TagsContent() {
 
   const [selectedTag, setSelectedTag] = useState(initialTag);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    mockArticles.forEach((a) => a.tags.forEach((t) => tagSet.add(t)));
-    return Array.from(tagSet).sort();
+  const loadArticles = useCallback(async (tag: string, query: string) => {
+    setLoading(true);
+    try {
+      if (query.trim()) {
+        const res = await searchArticles(query);
+        setArticles(
+          tag ? res.items.filter((a) => a.tags.includes(tag)) : res.items,
+        );
+      } else {
+        const res = await fetchArticles(1, 100, tag || undefined);
+        setArticles(res.items);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredArticles = useMemo(() => {
-    let articles = mockArticles;
-    if (selectedTag) {
-      articles = articles.filter((a) => a.tags.includes(selectedTag));
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      articles = articles.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.summary.toLowerCase().includes(q),
-      );
-    }
-    return articles;
-  }, [selectedTag, searchQuery]);
+  useEffect(() => {
+    fetchTags().then(setAllTags);
+  }, []);
+
+  useEffect(() => {
+    loadArticles(selectedTag, searchQuery);
+  }, [selectedTag, searchQuery, loadArticles]);
 
   return (
     <PageTransition>
@@ -115,7 +122,11 @@ function TagsContent() {
             transition={{ duration: 0.3 }}
             className="flex flex-col gap-4"
           >
-            {filteredArticles.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : articles.length === 0 ? (
               <p className="py-12 text-center text-muted-foreground">
                 没有找到匹配的文章
               </p>
@@ -129,7 +140,7 @@ function TagsContent() {
                 }}
                 className="flex flex-col gap-4"
               >
-                {filteredArticles.map((article) => (
+                {articles.map((article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </motion.div>
