@@ -6,6 +6,7 @@ import { motion, useMotionValueEvent, useScroll } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
+import { AccentPicker } from "./accent-picker";
 
 const navLinks = [
   { href: "/", label: "首页" },
@@ -68,12 +69,13 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="relative rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="link-underline relative rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </Link>
           ))}
-          <div className="ml-2">
+          <div className="ml-2 flex items-center gap-1">
+            <AccentPicker />
             <ThemeToggle />
           </div>
         </div>
@@ -105,7 +107,8 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            <div className="mt-2 px-3">
+            <div className="mt-2 flex items-center gap-2 px-3">
+              <AccentPicker />
               <ThemeToggle />
             </div>
           </div>

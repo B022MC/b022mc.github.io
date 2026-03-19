@@ -42,6 +42,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-glow: var(--glow);
 }
 
 :root {
@@ -64,6 +65,7 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  --glow: oklch(0.5 0 0 / 0.08);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -98,6 +100,7 @@
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
+  --glow: oklch(0.5 0 0 / 0.06);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -111,4 +114,121 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* Themed accent colors - applied via .themed class */
+.themed {
+  --primary: oklch(0.55 var(--accent-chroma) var(--accent-hue));
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 var(--accent-chroma) var(--accent-hue));
+  --glow: oklch(0.55 var(--accent-chroma) var(--accent-hue) / 0.12);
+  --chart-1: oklch(0.65 var(--accent-chroma) var(--accent-hue));
+}
+
+.dark.themed {
+  --primary: oklch(0.7 var(--accent-chroma) var(--accent-hue));
+  --primary-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.7 var(--accent-chroma) var(--accent-hue));
+  --glow: oklch(0.7 var(--accent-chroma) var(--accent-hue) / 0.15);
+  --chart-1: oklch(0.7 var(--accent-chroma) var(--accent-hue));
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Card glow effect on hover */
+.card-glow {
+  position: relative;
+}
+.card-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    var(--glow),
+    transparent 40%
+  );
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.card-glow:hover::before {
+  opacity: 1;
+}
+
+/* Smooth text selection */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Animated underline for links */
+.link-underline {
+  background-image: linear-gradient(var(--primary), var(--primary));
+  background-size: 0% 2px;
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  transition: background-size 0.3s ease;
+}
+.link-underline:hover {
+  background-size: 100% 2px;
+}
+
+/* Gradient text animation */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--chart-1) 50%,
+    var(--primary) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
+}
+
+/* Shimmer loading skeleton */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--accent) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
