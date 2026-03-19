@@ -10,6 +10,7 @@ import { renderMarkdown, extractTOC } from "@/lib/markdown";
 import { formatDate, estimateReadingTime } from "@/lib/utils";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { TableOfContents } from "@/components/blog/table-of-contents";
+import { CommentSection } from "@/components/blog/comment-section";
 import { PageTransition } from "@/components/animation/page-transition";
 
 export default function BlogDetailPage({
@@ -131,6 +132,8 @@ export default function BlogDetailPage({
             <TableOfContents items={tocItems} />
           </aside>
         </div>
+
+        <CommentSection articleId={article.id} />
       </article>
     </PageTransition>
   );

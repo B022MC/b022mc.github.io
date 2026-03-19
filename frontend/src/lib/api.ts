@@ -82,6 +82,23 @@ export const api = {
       request<PaginatedResponse<Article>>(
         `/api/v1/articles/search?q=${encodeURIComponent(q)}&page=${page}`,
       ),
+    create: (data: { title: string; summary: string; content: string; coverImage?: string; tags: string[] }, token: string) =>
+      request<Article>("/api/v1/articles", {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: { title: string; summary: string; content: string; coverImage?: string; tags: string[] }, token: string) =>
+      request<Article>(`/api/v1/articles/${id}`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number, token: string) =>
+      request<{ message: string }>(`/api/v1/articles/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(token),
+      }),
   },
   comments: {
     list: (articleId: number) =>
