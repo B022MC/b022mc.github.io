@@ -78,18 +78,25 @@ function TagsContent() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.04, delayChildren: 0.2 } },
+          }}
           className="mb-8 flex flex-wrap gap-2"
         >
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            variants={{
+              hidden: { opacity: 0, scale: 0.8, y: 10 },
+              visible: { opacity: 1, scale: 1, y: 0 },
+            }}
+            whileHover={{ scale: 1.08, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setSelectedTag("")}
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               !selectedTag
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
           >
@@ -98,12 +105,16 @@ function TagsContent() {
           {allTags.map((tag) => (
             <motion.button
               key={tag}
-              whileHover={{ scale: 1.05 }}
+              variants={{
+                hidden: { opacity: 0, scale: 0.8, y: 10 },
+                visible: { opacity: 1, scale: 1, y: 0 },
+              }}
+              whileHover={{ scale: 1.08, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setSelectedTag(tag === selectedTag ? "" : tag)}
               className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                 tag === selectedTag
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
               }`}
             >

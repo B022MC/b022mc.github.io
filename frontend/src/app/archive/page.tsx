@@ -51,12 +51,12 @@ export default function ArchivePage() {
           <p className="py-12 text-center text-muted-foreground">暂无文章</p>
         ) : (
           <div className="relative">
-            {/* Timeline line */}
+            {/* Timeline line with gradient */}
             <motion.div
               initial={{ height: 0 }}
               animate={{ height: "100%" }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="absolute left-[7px] top-0 w-px bg-border"
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="absolute left-[7px] top-0 w-px bg-gradient-to-b from-primary via-primary/50 to-transparent"
             />
 
             {years.map((year, yearIdx) => (
@@ -68,7 +68,12 @@ export default function ArchivePage() {
                   transition={{ duration: 0.5, delay: yearIdx * 0.1 }}
                   className="mb-6 flex items-center gap-4"
                 >
-                  <div className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full border-2 border-primary bg-background" />
+                  <motion.div
+                    className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full border-2 border-primary bg-background"
+                    whileInView={{ scale: [0, 1.3, 1] }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: yearIdx * 0.1 }}
+                  />
                   <h2 className="text-xl font-bold">{year}</h2>
                   <span className="text-sm text-muted-foreground">
                     {grouped[year].length} 篇文章
