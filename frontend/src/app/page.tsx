@@ -6,6 +6,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArticleCard } from "@/components/blog/article-card";
 import { FadeIn } from "@/components/animation/fade-in";
+import { FloatingParticles } from "@/components/animation/floating-particles";
+import { Magnetic } from "@/components/animation/magnetic";
 import { fetchArticles } from "@/lib/api";
 import type { Article } from "@/lib/api";
 
@@ -24,26 +26,35 @@ function HeroSection() {
 
   return (
     <section className="relative flex min-h-[85vh] items-center justify-center overflow-hidden">
-      {/* Animated background gradient */}
+      {/* Animated background */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl"
+          className="absolute left-1/4 top-1/4 h-[500px] w-[500px] rounded-full bg-primary/8 blur-[100px]"
           animate={{
-            x: [0, 30, -20, 0],
-            y: [0, -20, 30, 0],
-            scale: [1, 1.1, 0.95, 1],
+            x: [0, 50, -30, 0],
+            y: [0, -30, 50, 0],
+            scale: [1, 1.2, 0.9, 1],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-chart-1/5 blur-3xl"
+          className="absolute bottom-1/4 right-1/4 h-[400px] w-[400px] rounded-full bg-chart-1/8 blur-[100px]"
           animate={{
-            x: [0, -30, 20, 0],
-            y: [0, 20, -30, 0],
-            scale: [1, 0.95, 1.1, 1],
+            x: [0, -40, 30, 0],
+            y: [0, 30, -40, 0],
+            scale: [1, 0.9, 1.15, 1],
           }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
         />
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[80px]"
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.5, 0.8, 0.5],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <FloatingParticles count={25} />
       </div>
 
       <div className="mx-auto max-w-4xl px-6 text-center">
@@ -117,12 +128,15 @@ function HeroSection() {
           transition={{ delay: 1.5, duration: 1 }}
           className="mt-16"
         >
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <ArrowDown size={20} className="mx-auto text-muted-foreground" />
-          </motion.div>
+          <Magnetic strength={0.5}>
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="cursor-pointer"
+            >
+              <ArrowDown size={20} className="mx-auto text-muted-foreground" />
+            </motion.div>
+          </Magnetic>
         </motion.div>
       </div>
     </section>
