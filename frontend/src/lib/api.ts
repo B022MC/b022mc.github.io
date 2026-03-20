@@ -41,10 +41,23 @@ export interface AuthResponse {
   user: User;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const SERVER_API_BASE =
+  process.env.API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
+
+function getApiBase() {
+  // Browser requests should use the current origin so the site can sit
+  // behind a single domain and let the ingress route `/api` to blog-api.
+  if (typeof window !== "undefined") {
+    return process.env.NEXT_PUBLIC_API_URL || "";
+  }
+
+  return SERVER_API_BASE;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  const url = `${getApiBase()}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {

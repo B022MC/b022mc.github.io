@@ -1,6 +1,9 @@
 import { fetchArticles } from "@/lib/api";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://b022mc.github.io";
+const SITE_URL =
+  process.env.SITE_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://b022mc.cn";
 
 export async function GET() {
   const { items: articles } = await fetchArticles(1, 50);

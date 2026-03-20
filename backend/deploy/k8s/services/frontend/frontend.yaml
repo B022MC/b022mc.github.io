@@ -26,8 +26,10 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: NEXT_PUBLIC_API_URL
+            - name: API_BASE_URL
               value: "http://blog-api.blog.svc.cluster.local:8080"
+            - name: SITE_URL
+              value: "https://b022mc.cn"
           resources:
             requests:
               memory: "32Mi"
