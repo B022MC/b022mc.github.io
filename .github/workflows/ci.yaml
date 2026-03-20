@@ -9,6 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   REPO_OWNER: b022mc
+  DEPLOY_ROLLOUT_TIMEOUT: 15m
 
 jobs:
   backend-quality:
@@ -178,12 +179,43 @@ jobs:
           host: ${{ secrets.K3S_HOST }}
           username: root
           password: ${{ secrets.K3S_PASSWORD }}
+          command_timeout: 30m
           script: |
             set -euo pipefail
 
             export OWNER="${{ env.REPO_OWNER }}"
             export SHA="${{ github.sha }}"
             export REGISTRY="${{ env.REGISTRY }}"
+            export ROLLOUT_TIMEOUT="${{ env.DEPLOY_ROLLOUT_TIMEOUT }}"
+
+            rollout_with_diagnostics() {
+              local deployment="$1"
+              local timeout="$2"
+              local pods
+
+              echo "Waiting for deployment/${deployment} rollout for up to ${timeout}..."
+              if k3s kubectl -n blog rollout status "deployment/${deployment}" --timeout="${timeout}"; then
+                return 0
+              fi
+
+              echo "Rollout failed for deployment/${deployment}, collecting diagnostics..."
+              k3s kubectl -n blog get deployment "${deployment}" -o wide || true
+              k3s kubectl -n blog describe deployment "${deployment}" || true
+              k3s kubectl -n blog get pods -l "app=${deployment}" -o wide || true
+
+              pods="$(k3s kubectl -n blog get pods -l "app=${deployment}" -o name || true)"
+              if [ -z "${pods}" ]; then
+                return 1
+              fi
+
+              while IFS= read -r pod; do
+                [ -n "${pod}" ] || continue
+                k3s kubectl -n blog describe "${pod}" || true
+                k3s kubectl -n blog logs "${pod#pod/}" --all-containers=true --tail=200 || true
+              done <<< "${pods}"
+
+              return 1
+            }
 
             k3s kubectl apply -f - <<'BASE'
             ${{ steps.manifests.outputs.base }}
@@ -208,10 +240,10 @@ jobs:
             k3s kubectl -n blog set image deployment/frontend \
               frontend=${REGISTRY}/${OWNER}/blog-frontend:${SHA}
 
-            k3s kubectl -n blog rollout status deployment/blog-api --timeout=120s
-            k3s kubectl -n blog rollout status deployment/article --timeout=120s
-            k3s kubectl -n blog rollout status deployment/user --timeout=120s
-            k3s kubectl -n blog rollout status deployment/comment --timeout=120s
-            k3s kubectl -n blog rollout status deployment/frontend --timeout=120s
+            rollout_with_diagnostics blog-api "${ROLLOUT_TIMEOUT}"
+            rollout_with_diagnostics article "${ROLLOUT_TIMEOUT}"
+            rollout_with_diagnostics user "${ROLLOUT_TIMEOUT}"
+            rollout_with_diagnostics comment "${ROLLOUT_TIMEOUT}"
+            rollout_with_diagnostics frontend "${ROLLOUT_TIMEOUT}"
 
             echo "Blog deployment complete."
