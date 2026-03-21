@@ -179,8 +179,8 @@ export default function BlogDetailPage({
           </motion.header>
         </div>
 
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 xl:flex-row xl:gap-12">
-          <div className="xl:hidden">
+        <div className="relative mx-auto max-w-4xl">
+          <div className="mb-6 xl:hidden">
             <TableOfContents items={tocItems} variant="mobile" />
           </div>
 
@@ -204,7 +204,7 @@ export default function BlogDetailPage({
             </div>
           )}
 
-          <aside className="hidden w-56 shrink-0 xl:block">
+          <aside className="hidden xl:absolute xl:left-[calc(100%+2rem)] xl:top-0 xl:block xl:w-56">
             <TableOfContents items={tocItems} />
           </aside>
         </div>
