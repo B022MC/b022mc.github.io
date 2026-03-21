@@ -40,6 +40,13 @@ func NewHTTPServer(c *conf.Config, svc *service.BlogService, logger log.Logger) 
 
 	r := srv.Route("/")
 
+	r.GET("/api/healthz", func(ctx kratoshttp.Context) error {
+		ctx.Response().Header().Set("Content-Type", "application/json")
+		ctx.Response().WriteHeader(http.StatusOK)
+		_, err := ctx.Response().Write([]byte(`{"status":"ok","service":"blog-api"}`))
+		return err
+	})
+
 	// Public article routes
 	r.GET("/api/v1/articles", svc.ListArticles)
 	r.GET("/api/v1/articles/search", svc.SearchArticles)

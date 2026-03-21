@@ -217,6 +217,15 @@ jobs:
               return 1
             }
 
+            smoke_check() {
+              local url="$1"
+              local label="$2"
+
+              echo "Running smoke check for ${label}: ${url}"
+              curl -fsS --max-time 10 "${url}" >/tmp/"${label}".health.json
+              cat /tmp/"${label}".health.json
+            }
+
             k3s kubectl apply -f - <<'BASE'
             ${{ steps.manifests.outputs.base }}
             BASE
@@ -245,5 +254,8 @@ jobs:
             rollout_with_diagnostics user "${ROLLOUT_TIMEOUT}"
             rollout_with_diagnostics comment "${ROLLOUT_TIMEOUT}"
             rollout_with_diagnostics frontend "${ROLLOUT_TIMEOUT}"
+
+            smoke_check "http://127.0.0.1:30800/api/healthz" "blog-api"
+            smoke_check "http://127.0.0.1:30180/healthz" "frontend"
 
             echo "Blog deployment complete."
