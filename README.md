@@ -54,3 +54,10 @@ make run
 ## Deployment
 
 Deployed via GitHub Actions to K3s cluster. Docker images pushed to `ghcr.io/b022mc/blog-*`.
+
+## Operations
+
+- Runbook: `docs/blog-operations-runbook.md`
+- Acceptance baseline: `docs/project-acceptance-baseline.md`
+- Production config matrix: `docs/production-config-matrix.md`
+- Public access diagnostics: `docs/public-access-diagnostics.md`
