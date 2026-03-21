@@ -50,8 +50,11 @@ jobs:
       - name: Run frontend lint
         run: npm run lint
 
+      - name: Run frontend tests
+        run: npm run test
+
       - name: Run frontend build
-        run: npx next build
+        run: npm run build
 
   build-backend:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
