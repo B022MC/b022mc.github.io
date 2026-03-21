@@ -41,10 +41,36 @@ export interface AuthResponse {
   user: User;
 }
 
+export type ApiErrorKind = "http" | "network" | "timeout" | "auth";
+
+interface ApiErrorOptions {
+  kind: ApiErrorKind;
+  status: number | null;
+  path: string;
+  details?: unknown;
+}
+
+export class ApiError extends Error {
+  kind: ApiErrorKind;
+  status: number | null;
+  path: string;
+  details?: unknown;
+
+  constructor(message: string, options: ApiErrorOptions) {
+    super(message);
+    this.name = "ApiError";
+    this.kind = options.kind;
+    this.status = options.status;
+    this.path = options.path;
+    this.details = options.details;
+  }
+}
+
 const SERVER_API_BASE =
   process.env.API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:8080";
+const DEFAULT_TIMEOUT_MS = 10000;
 
 function getApiBase() {
   // Browser requests should use the current origin so the site can sit
@@ -56,21 +82,102 @@ function getApiBase() {
   return SERVER_API_BASE;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${getApiBase()}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
 
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+export function isAuthError(error: unknown) {
+  return isApiError(error) && (error.kind === "auth" || error.status === 401 || error.status === 403);
+}
+
+async function parseResponseBody(res: Response) {
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return res.text();
   }
 
-  return res.json();
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function buildApiErrorMessage(status: number, statusText: string, body: unknown) {
+  if (body && typeof body === "object") {
+    const errorMessage = "error" in body && typeof body.error === "string"
+      ? body.error
+      : "message" in body && typeof body.message === "string"
+        ? body.message
+        : "";
+    if (errorMessage) {
+      return errorMessage;
+    }
+  }
+
+  if (typeof body === "string" && body.trim()) {
+    return body.trim();
+  }
+
+  return `API error: ${status} ${statusText}`;
+}
+
+async function request<T>(
+  path: string,
+  options?: RequestInit & { timeoutMs?: number },
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const url = `${getApiBase()}${path}`;
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+
+    const body = await parseResponseBody(res);
+    if (!res.ok) {
+      throw new ApiError(buildApiErrorMessage(res.status, res.statusText, body), {
+        kind: res.status === 401 || res.status === 403 ? "auth" : "http",
+        status: res.status,
+        path,
+        details: body,
+      });
+    }
+
+    return body as T;
+  } catch (error) {
+    if (isApiError(error)) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw new ApiError(`Request timed out after ${timeoutMs}ms`, {
+        kind: "timeout",
+        status: null,
+        path,
+      });
+    }
+
+    throw new ApiError("Network request failed", {
+      kind: "network",
+      status: null,
+      path,
+      details: error,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function authHeaders(token: string): HeadersInit {
