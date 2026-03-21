@@ -71,6 +71,9 @@ const SERVER_API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:8080";
 const DEFAULT_TIMEOUT_MS = 10000;
+const ENABLE_API_MOCKS =
+  process.env.ENABLE_API_MOCKS === "1" ||
+  process.env.NEXT_PUBLIC_ENABLE_API_MOCKS === "1";
 
 function getApiBase() {
   // Browser requests should use the current origin so the site can sit
@@ -92,6 +95,10 @@ export function isApiError(error: unknown): error is ApiError {
 
 export function isAuthError(error: unknown) {
   return isApiError(error) && (error.kind === "auth" || error.status === 401 || error.status === 403);
+}
+
+function isMockDataEnabled() {
+  return ENABLE_API_MOCKS;
 }
 
 async function parseResponseBody(res: Response) {
@@ -306,8 +313,8 @@ export const mockArticles: Article[] = [
 ];
 
 /**
- * Fetches articles from the real API, falling back to mock data
- * when the backend is unavailable (e.g. local development without backend).
+ * Fetches articles from the real API. Mock data is only allowed when
+ * ENABLE_API_MOCKS or NEXT_PUBLIC_ENABLE_API_MOCKS is explicitly enabled.
  */
 export async function fetchArticles(
   page = 1,
@@ -316,7 +323,11 @@ export async function fetchArticles(
 ): Promise<PaginatedResponse<Article>> {
   try {
     return await api.articles.list(page, pageSize, tag);
-  } catch {
+  } catch (error) {
+    if (!isMockDataEnabled()) {
+      throw error;
+    }
+
     const filtered = tag
       ? mockArticles.filter((a) => a.tags.includes(tag))
       : mockArticles;
@@ -333,7 +344,11 @@ export async function fetchArticles(
 export async function fetchArticle(slug: string): Promise<Article | null> {
   try {
     return await api.articles.get(slug);
-  } catch {
+  } catch (error) {
+    if (!isMockDataEnabled()) {
+      throw error;
+    }
+
     return mockArticles.find((a) => a.slug === slug) ?? null;
   }
 }
@@ -344,7 +359,11 @@ export async function searchArticles(
 ): Promise<PaginatedResponse<Article>> {
   try {
     return await api.articles.search(q, page);
-  } catch {
+  } catch (error) {
+    if (!isMockDataEnabled()) {
+      throw error;
+    }
+
     const lower = q.toLowerCase();
     const filtered = mockArticles.filter(
       (a) =>
@@ -363,7 +382,11 @@ export async function searchArticles(
 export async function fetchTags(): Promise<string[]> {
   try {
     return await api.tags.list();
-  } catch {
+  } catch (error) {
+    if (!isMockDataEnabled()) {
+      throw error;
+    }
+
     const tagSet = new Set<string>();
     mockArticles.forEach((a) => a.tags.forEach((t) => tagSet.add(t)));
     return Array.from(tagSet).sort();
