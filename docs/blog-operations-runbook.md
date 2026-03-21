@@ -127,7 +127,9 @@ problem, not an upstream routing problem.
 
 1. Inspect deployment rollout:
    - `k3s kubectl -n blog rollout status deployment/<name> --timeout=15m`
-2. Collect deployment and pod diagnostics:
+2. Download the GitHub Actions artifact named `deploy-diagnostics-<sha>` from
+   the deploy workflow run and review the rollout, pod, and smoke outputs first.
+3. If you still need host access, collect deployment and pod diagnostics:
    - `k3s kubectl -n blog describe deployment <name>`
    - `k3s kubectl -n blog get pods -l app=<name> -o wide`
    - `k3s kubectl -n blog logs deploy/<name> --all-containers=true --tail=200`
@@ -144,7 +146,8 @@ problem, not an upstream routing problem.
 
 Until automated rollback is implemented, rollback is manual:
 
-1. Identify the last known good image SHA from GitHub Actions or GHCR.
+1. Identify the last known good image SHA from the deploy workflow summary,
+   the `deploy-diagnostics-<sha>` artifact, or GHCR.
 2. Reset the deployments explicitly:
 
 ```bash

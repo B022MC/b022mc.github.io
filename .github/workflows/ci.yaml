@@ -190,6 +190,18 @@ jobs:
             export SHA="${{ github.sha }}"
             export REGISTRY="${{ env.REGISTRY }}"
             export ROLLOUT_TIMEOUT="${{ env.DEPLOY_ROLLOUT_TIMEOUT }}"
+            export DIAG_DIR="/tmp/blog-deploy-diagnostics-${SHA}"
+            export DIAG_ARCHIVE="/tmp/blog-deploy-diagnostics-${SHA}.tgz"
+
+            rm -rf "${DIAG_DIR}" "${DIAG_ARCHIVE}"
+            mkdir -p "${DIAG_DIR}"
+
+            finalize_diagnostics() {
+              tar -czf "${DIAG_ARCHIVE}" -C /tmp "blog-deploy-diagnostics-${SHA}" >/dev/null 2>&1 || true
+              echo "Deployment diagnostics archive: ${DIAG_ARCHIVE}"
+            }
+
+            trap finalize_diagnostics EXIT
 
             rollout_with_diagnostics() {
               local deployment="$1"
@@ -202,9 +214,15 @@ jobs:
               fi
 
               echo "Rollout failed for deployment/${deployment}, collecting diagnostics..."
-              k3s kubectl -n blog get deployment "${deployment}" -o wide || true
-              k3s kubectl -n blog describe deployment "${deployment}" || true
-              k3s kubectl -n blog get pods -l "app=${deployment}" -o wide || true
+              k3s kubectl -n blog get deployment "${deployment}" -o wide \
+                >"${DIAG_DIR}/${deployment}-deployment.txt" 2>&1 || true
+              cat "${DIAG_DIR}/${deployment}-deployment.txt"
+              k3s kubectl -n blog describe deployment "${deployment}" \
+                >"${DIAG_DIR}/${deployment}-describe.txt" 2>&1 || true
+              cat "${DIAG_DIR}/${deployment}-describe.txt"
+              k3s kubectl -n blog get pods -l "app=${deployment}" -o wide \
+                >"${DIAG_DIR}/${deployment}-pods.txt" 2>&1 || true
+              cat "${DIAG_DIR}/${deployment}-pods.txt"
 
               pods="$(k3s kubectl -n blog get pods -l "app=${deployment}" -o name || true)"
               if [ -z "${pods}" ]; then
@@ -212,9 +230,19 @@ jobs:
               fi
 
               while IFS= read -r pod; do
+                local pod_name
+                local pod_file_prefix
+
                 [ -n "${pod}" ] || continue
-                k3s kubectl -n blog describe "${pod}" || true
-                k3s kubectl -n blog logs "${pod#pod/}" --all-containers=true --tail=200 || true
+                pod_name="${pod#pod/}"
+                pod_file_prefix="${DIAG_DIR}/${deployment}-${pod_name}"
+
+                k3s kubectl -n blog describe "${pod}" \
+                  >"${pod_file_prefix}-describe.txt" 2>&1 || true
+                cat "${pod_file_prefix}-describe.txt"
+                k3s kubectl -n blog logs "${pod_name}" --all-containers=true --tail=200 \
+                  >"${pod_file_prefix}-logs.txt" 2>&1 || true
+                cat "${pod_file_prefix}-logs.txt"
               done <<< "${pods}"
 
               return 1
@@ -225,8 +253,8 @@ jobs:
               local label="$2"
 
               echo "Running smoke check for ${label}: ${url}"
-              curl -fsS --max-time 10 "${url}" >/tmp/"${label}".health.json
-              cat /tmp/"${label}".health.json
+              curl -fsS --max-time 10 "${url}" >"${DIAG_DIR}/${label}.health.json"
+              cat "${DIAG_DIR}/${label}.health.json"
             }
 
             k3s kubectl apply -f - <<'BASE'
@@ -272,3 +300,33 @@ jobs:
             smoke_check "http://127.0.0.1:30180/healthz" "frontend"
 
             echo "Blog deployment complete."
+
+      - name: Download deployment diagnostics
+        if: always()
+        continue-on-error: true
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.K3S_HOST }}
+          username: root
+          password: ${{ secrets.K3S_PASSWORD }}
+          source: /tmp/blog-deploy-diagnostics-${{ github.sha }}.tgz
+          target: deploy-diagnostics
+
+      - name: Upload deployment diagnostics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-diagnostics-${{ github.sha }}
+          path: deploy-diagnostics/**/*.tgz
+          if-no-files-found: warn
+
+      - name: Write deployment summary
+        if: always()
+        run: |
+          {
+            echo "## Deployment Handoff"
+            echo "- Image SHA: \`${{ github.sha }}\`"
+            echo "- Smoke checks: \`http://127.0.0.1:30800/api/healthz\`, \`http://127.0.0.1:30180/healthz\`"
+            echo "- Diagnostics artifact: \`deploy-diagnostics-${{ github.sha }}\`"
+            echo "- Rollback guide: \`docs/blog-operations-runbook.md\`"
+          } >> "$GITHUB_STEP_SUMMARY"
