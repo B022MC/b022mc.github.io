@@ -14,16 +14,18 @@ import {
   LogIn,
 } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, isAuthError } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { renderMarkdown } from "@/lib/markdown";
 import { PageTransition } from "@/components/animation/page-transition";
 
 function EditorContent() {
-  const { isLoggedIn, token } = useAuth();
+  const { isLoggedIn, token, logout, isReady } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
+  const nextTarget = editId ? `/admin/edit?id=${editId}` : "/admin/edit";
+  const authHref = `/auth?next=${encodeURIComponent(nextTarget)}&reason=unauthorized`;
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -35,6 +37,11 @@ function EditorContent() {
   const [previewHtml, setPreviewHtml] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingArticle, setLoadingArticle] = useState(!!editId);
+
+  const redirectToAuth = useCallback((reason: "unauthorized" | "expired") => {
+    logout();
+    router.replace(`/auth?next=${encodeURIComponent(nextTarget)}&reason=${reason}`);
+  }, [logout, nextTarget, router]);
 
   const loadArticle = useCallback(async () => {
     if (!editId) return;
@@ -99,12 +106,24 @@ function EditorContent() {
         await api.articles.create(data, token);
       }
       router.push("/admin");
-    } catch {
+    } catch (error) {
+      if (isAuthError(error)) {
+        redirectToAuth("expired");
+        return;
+      }
       alert("保存失败，请重试");
     } finally {
       setSaving(false);
     }
   };
+
+  if (!isReady) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -113,7 +132,7 @@ function EditorContent() {
           <h1 className="mb-4 text-2xl font-bold">需要登录</h1>
           <p className="mb-6 text-muted-foreground">请先登录以编辑文章</p>
           <Link
-            href="/auth"
+            href={authHref}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
           >
             <LogIn size={16} />

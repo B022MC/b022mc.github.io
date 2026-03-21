@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { PageTransition } from "@/components/animation/page-transition";
 
-export default function AuthPage() {
+function AuthContent() {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -18,6 +18,14 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") || "/";
+  const reason = searchParams.get("reason");
+  const infoMessage = reason === "expired"
+    ? "登录状态已失效，请重新登录后继续。"
+    : reason === "unauthorized"
+      ? "需要登录后才能访问目标页面。"
+      : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +37,7 @@ export default function AuthPage() {
         ? await api.auth.login(username, password)
         : await api.auth.register(username, email, password);
       login(res.token, res.user);
-      router.push("/");
+      router.push(nextPath);
     } catch {
       setError(isLogin ? "登录失败，请检查用户名和密码" : "注册失败，请重试");
     } finally {
@@ -156,6 +164,16 @@ export default function AuthPage() {
                 </motion.p>
               )}
 
+              {!error && infoMessage && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-sm text-muted-foreground"
+                >
+                  {infoMessage}
+                </motion.p>
+              )}
+
               <motion.button
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
@@ -170,5 +188,27 @@ export default function AuthPage() {
         </motion.div>
       </div>
     </PageTransition>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageTransition>
+          <div className="flex min-h-[80vh] items-center justify-center px-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex h-24 w-full max-w-md items-center justify-center rounded-2xl border border-border bg-card"
+            >
+              <span className="text-sm text-muted-foreground">加载登录状态...</span>
+            </motion.div>
+          </div>
+        </PageTransition>
+      }
+    >
+      <AuthContent />
+    </Suspense>
   );
 }
