@@ -14,11 +14,12 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
-import { api, fetchArticles } from "@/lib/api";
+import { api, fetchArticles, getApiErrorMessage } from "@/lib/api";
 import type { Article } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/utils";
 import { PageTransition } from "@/components/animation/page-transition";
+import { ErrorState } from "@/components/feedback/error-state";
 
 export default function AdminPage() {
   const { isLoggedIn, token } = useAuth();
@@ -27,12 +28,17 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const loadArticles = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetchArticles(1, 100);
       setArticles(res.items);
+    } catch (error) {
+      setArticles([]);
+      setError(getApiErrorMessage(error, "后台文章列表加载失败"));
     } finally {
       setLoading(false);
     }
@@ -130,6 +136,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : error ? (
+          <ErrorState
+            title="管理后台暂时不可用"
+            message={error}
+            onRetry={loadArticles}
+          />
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center">
             <p className="mb-4 text-muted-foreground">

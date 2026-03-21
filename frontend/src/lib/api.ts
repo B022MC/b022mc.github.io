@@ -97,6 +97,27 @@ export function isAuthError(error: unknown) {
   return isApiError(error) && (error.kind === "auth" || error.status === 401 || error.status === 403);
 }
 
+export function getApiErrorMessage(error: unknown, fallback: string) {
+  if (isApiError(error)) {
+    switch (error.kind) {
+      case "timeout":
+        return `${fallback}：请求超时，请稍后重试`;
+      case "network":
+        return `${fallback}：网络连接失败`;
+      case "auth":
+        return `${fallback}：认证状态无效`;
+      default:
+        return `${fallback}：${error.message}`;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return `${fallback}：${error.message}`;
+  }
+
+  return fallback;
+}
+
 function isMockDataEnabled() {
   return ENABLE_API_MOCKS;
 }

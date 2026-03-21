@@ -2,14 +2,15 @@
 
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArticleCard } from "@/components/blog/article-card";
 import { FadeIn } from "@/components/animation/fade-in";
 import { FloatingParticles } from "@/components/animation/floating-particles";
 import { GradientText, RotatingWords, TextReveal } from "@/components/animation/text-reveal";
-import { fetchArticles } from "@/lib/api";
+import { fetchArticles, getApiErrorMessage } from "@/lib/api";
 import type { Article } from "@/lib/api";
+import { ErrorState } from "@/components/feedback/error-state";
 
 const typewriterText = "Code, Think, Share.";
 const subtitleWords = ["技术", "编程", "架构", "开源", "云原生"];
@@ -158,12 +159,25 @@ function ArticleSkeleton() {
 export default function HomePage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadArticles = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchArticles(1, 10);
+      setArticles(res.items);
+    } catch (error) {
+      setArticles([]);
+      setError(getApiErrorMessage(error, "最新文章加载失败"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchArticles(1, 10)
-      .then((res) => setArticles(res.items))
-      .finally(() => setLoading(false));
-  }, []);
+    void loadArticles();
+  }, [loadArticles]);
 
   return (
     <>
@@ -192,6 +206,12 @@ export default function HomePage() {
               </motion.div>
             ))}
           </div>
+        ) : error ? (
+          <ErrorState
+            title="最新文章暂时不可用"
+            message={error}
+            onRetry={loadArticles}
+          />
         ) : articles.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}

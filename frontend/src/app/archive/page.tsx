@@ -1,23 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Calendar, Loader2 } from "lucide-react";
-import { fetchArticles } from "@/lib/api";
+import { fetchArticles, getApiErrorMessage } from "@/lib/api";
 import type { Article } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { PageTransition } from "@/components/animation/page-transition";
+import { ErrorState } from "@/components/feedback/error-state";
 
 export default function ArchivePage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadArticles = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchArticles(1, 200);
+      setArticles(res.items);
+    } catch (error) {
+      setArticles([]);
+      setError(getApiErrorMessage(error, "归档加载失败"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchArticles(1, 200)
-      .then((res) => setArticles(res.items))
-      .finally(() => setLoading(false));
-  }, []);
+    void loadArticles();
+  }, [loadArticles]);
 
   const grouped = articles.reduce<Record<string, Article[]>>((acc, article) => {
     const year = new Date(article.createdAt).getFullYear().toString();
@@ -47,7 +61,13 @@ export default function ArchivePage() {
           归档
         </motion.h1>
 
-        {articles.length === 0 ? (
+        {error ? (
+          <ErrorState
+            title="归档暂时不可用"
+            message={error}
+            onRetry={loadArticles}
+          />
+        ) : articles.length === 0 ? (
           <p className="py-12 text-center text-muted-foreground">暂无文章</p>
         ) : (
           <div className="relative">

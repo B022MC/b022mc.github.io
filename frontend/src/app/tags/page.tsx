@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tag, Search, Loader2 } from "lucide-react";
-import { fetchArticles, fetchTags, searchArticles } from "@/lib/api";
+import { fetchArticles, fetchTags, getApiErrorMessage, searchArticles } from "@/lib/api";
 import type { Article } from "@/lib/api";
 import { ArticleCard } from "@/components/blog/article-card";
 import { PageTransition } from "@/components/animation/page-transition";
+import { ErrorState } from "@/components/feedback/error-state";
 
 function TagsContent() {
   const searchParams = useSearchParams();
@@ -19,9 +20,12 @@ function TagsContent() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+  const [articlesError, setArticlesError] = useState<string | null>(null);
 
   const loadArticles = useCallback(async (tag: string, query: string) => {
     setLoading(true);
+    setArticlesError(null);
     try {
       if (query.trim()) {
         const res = await searchArticles(query);
@@ -32,18 +36,38 @@ function TagsContent() {
         const res = await fetchArticles(1, 100, tag || undefined);
         setArticles(res.items);
       }
+    } catch (error) {
+      setArticles([]);
+      setArticlesError(getApiErrorMessage(error, "文章筛选结果加载失败"));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchTags().then(setAllTags);
+  const loadTags = useCallback(async () => {
+    setTagsError(null);
+    try {
+      setAllTags(await fetchTags());
+    } catch (error) {
+      setAllTags([]);
+      setTagsError(getApiErrorMessage(error, "标签加载失败"));
+    }
   }, []);
 
   useEffect(() => {
-    loadArticles(selectedTag, searchQuery);
+    void loadTags();
+  }, [loadTags]);
+
+  useEffect(() => {
+    void loadArticles(selectedTag, searchQuery);
   }, [selectedTag, searchQuery, loadArticles]);
+
+  const pageError = tagsError ?? articlesError;
+
+  const handleRetry = () => {
+    void loadTags();
+    void loadArticles(selectedTag, searchQuery);
+  };
 
   return (
     <PageTransition>
@@ -137,6 +161,12 @@ function TagsContent() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
+            ) : pageError ? (
+              <ErrorState
+                title="标签页面暂时不可用"
+                message={pageError}
+                onRetry={handleRetry}
+              />
             ) : articles.length === 0 ? (
               <p className="py-12 text-center text-muted-foreground">
                 没有找到匹配的文章

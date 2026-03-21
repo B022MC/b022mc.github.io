@@ -12,7 +12,16 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const article = await fetchArticle(slug);
+  let article = null;
+
+  try {
+    article = await fetchArticle(slug);
+  } catch {
+    return {
+      title: "文章加载失败",
+      description: "文章详情暂时不可用，请稍后重试。",
+    };
+  }
 
   if (!article) {
     return { title: "文章不存在" };
