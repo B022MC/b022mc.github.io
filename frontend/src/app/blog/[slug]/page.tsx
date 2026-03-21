@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Calendar, Eye, Tag, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { fetchArticle, getApiErrorMessage } from "@/lib/api";
@@ -24,6 +24,7 @@ export default function BlogDetailPage({
   const [loading, setLoading] = useState(true);
   const [htmlContent, setHtmlContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const loadArticle = useCallback(async () => {
     setLoading(true);
@@ -50,10 +51,24 @@ export default function BlogDetailPage({
   );
 
   useEffect(() => {
-    if (article) {
-      renderMarkdown(article.content).then(setHtmlContent);
-    }
+    if (!article) return;
+
+    let cancelled = false;
+    setHtmlContent("");
+
+    void renderMarkdown(article.content).then((content) => {
+      if (!cancelled) {
+        setHtmlContent(content);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [article]);
+
+  const shouldShowContent =
+    !article || article.content.trim().length === 0 || htmlContent.length > 0;
 
   if (loading) {
     return (
@@ -89,12 +104,12 @@ export default function BlogDetailPage({
     <PageTransition>
       <ReadingProgress />
 
-      <article className="mx-auto max-w-6xl px-6 py-12">
+      <article className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <div className="mx-auto max-w-4xl">
           <motion.div
-            initial={{ opacity: 0, x: -10 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
           >
             <Link
               href="/"
@@ -106,14 +121,35 @@ export default function BlogDetailPage({
           </motion.div>
 
           <motion.header
-            initial={{ opacity: 0, y: 20 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-8"
+            transition={{ duration: prefersReducedMotion ? 0 : 0.5, delay: prefersReducedMotion ? 0 : 0.1 }}
+            className="mb-10 space-y-6 sm:mb-12"
           >
+            {article.coverImage && (
+              <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card shadow-sm">
+                <div className="aspect-[16/10] w-full overflow-hidden bg-secondary sm:aspect-[2.4/1]">
+                  {/* Keep arbitrary article cover URLs working without widening Next image host config. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={article.coverImage}
+                    alt={article.title}
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
+                </div>
+              </div>
+            )}
             <h1 className="mb-4 text-4xl font-bold tracking-tight">
               {article.title}
             </h1>
+            {article.summary && (
+              <p className="max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
+                {article.summary}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar size={14} />
@@ -143,14 +179,30 @@ export default function BlogDetailPage({
           </motion.header>
         </div>
 
-        <div className="relative mx-auto flex max-w-6xl gap-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="prose prose-neutral dark:prose-invert mx-auto min-w-0 max-w-4xl flex-1"
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-          />
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 xl:flex-row xl:gap-12">
+          <div className="xl:hidden">
+            <TableOfContents items={tocItems} variant="mobile" />
+          </div>
+
+          {shouldShowContent ? (
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.5,
+                delay: prefersReducedMotion ? 0 : 0.2,
+              }}
+              className="article-content prose prose-neutral dark:prose-invert mx-auto min-w-0 w-full max-w-4xl flex-1"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+          ) : (
+            <div className="mx-auto w-full max-w-4xl flex-1 rounded-[2rem] border border-border/70 bg-card/60 p-6 shadow-sm">
+              <div className="shimmer mb-4 h-6 w-1/3 rounded-full" />
+              <div className="shimmer mb-3 h-4 w-full rounded-full" />
+              <div className="shimmer mb-3 h-4 w-11/12 rounded-full" />
+              <div className="shimmer h-40 w-full rounded-3xl" />
+            </div>
+          )}
 
           <aside className="hidden w-56 shrink-0 xl:block">
             <TableOfContents items={tocItems} />
