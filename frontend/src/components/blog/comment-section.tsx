@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Reply, Send, Loader2, LogIn } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, getApiErrorMessage, isAuthError } from "@/lib/api";
 import type { Comment } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/utils";
+import { ErrorState } from "@/components/feedback/error-state";
 
 interface CommentItemProps {
   comment: Comment;
@@ -72,33 +73,48 @@ export function CommentSection({ articleId }: CommentSectionProps) {
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const loadComments = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.comments.list(articleId);
       setComments(data);
-    } catch {
+    } catch (error) {
       setComments([]);
+      setLoadError(getApiErrorMessage(error, "评论加载失败"));
     } finally {
       setLoading(false);
     }
   }, [articleId]);
 
   useEffect(() => {
-    loadComments();
+    void loadComments();
   }, [loadComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !token) return;
+    if (!content.trim()) return;
+    if (!token) {
+      setSubmitError("登录状态无效，请重新登录后再试");
+      return;
+    }
+
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await api.comments.create(articleId, content.trim(), replyTo, token);
       setContent("");
       setReplyTo(0);
       await loadComments();
-    } catch {
-      // silently fail
+    } catch (error) {
+      if (isAuthError(error)) {
+        setSubmitError("登录状态已失效，请重新登录后再试");
+      } else {
+        setSubmitError(getApiErrorMessage(error, "评论提交失败"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -106,6 +122,7 @@ export function CommentSection({ articleId }: CommentSectionProps) {
 
   const handleReply = (parentId: number) => {
     setReplyTo(parentId);
+    setSubmitError(null);
     document.getElementById("comment-input")?.focus();
   };
 
@@ -130,7 +147,10 @@ export function CommentSection({ articleId }: CommentSectionProps) {
               <span>回复评论 #{replyTo}</span>
               <button
                 type="button"
-                onClick={() => setReplyTo(0)}
+                onClick={() => {
+                  setReplyTo(0);
+                  setSubmitError(null);
+                }}
                 className="text-primary hover:underline"
               >
                 取消
@@ -141,7 +161,10 @@ export function CommentSection({ articleId }: CommentSectionProps) {
             <textarea
               id="comment-input"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setSubmitError(null);
+              }}
               placeholder="写下你的评论..."
               rows={3}
               className="flex-1 resize-none rounded-lg border border-border bg-background px-4 py-3 text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
@@ -160,6 +183,9 @@ export function CommentSection({ articleId }: CommentSectionProps) {
               )}
             </motion.button>
           </div>
+          {submitError && (
+            <p className="mt-3 text-sm text-destructive">{submitError}</p>
+          )}
         </form>
       ) : (
         <div className="mb-8 rounded-lg border border-border bg-card p-6 text-center">
@@ -181,6 +207,12 @@ export function CommentSection({ articleId }: CommentSectionProps) {
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : loadError ? (
+        <ErrorState
+          title="评论暂时不可用"
+          message={loadError}
+          onRetry={loadComments}
+        />
       ) : (
         <AnimatePresence>
           <div className="space-y-4">
