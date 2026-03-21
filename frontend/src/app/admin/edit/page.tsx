@@ -19,6 +19,61 @@ import { useAuth } from "@/hooks/use-auth";
 import { renderMarkdown } from "@/lib/markdown";
 import { PageTransition } from "@/components/animation/page-transition";
 
+interface EditorDraft {
+  title: string;
+  summary: string;
+  content: string;
+  coverImage: string;
+  tags: string[];
+}
+
+function normalizeTag(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeTags(values: string[]) {
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const normalized = normalizeTag(value);
+    if (!normalized) {
+      continue;
+    }
+
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(normalized);
+  }
+
+  return deduped;
+}
+
+function buildDraft(input: EditorDraft): EditorDraft {
+  return {
+    title: input.title.trim(),
+    summary: input.summary.trim(),
+    content: input.content.trim(),
+    coverImage: input.coverImage.trim(),
+    tags: normalizeTags(input.tags),
+  };
+}
+
+function serializeDraft(draft: EditorDraft) {
+  return JSON.stringify(draft);
+}
+
+function getValidationErrors(draft: EditorDraft) {
+  return {
+    title: draft.title ? "" : "请输入文章标题",
+    content: draft.content ? "" : "请输入文章内容",
+  };
+}
+
 function EditorContent() {
   const { isLoggedIn, token, logout, isReady } = useAuth();
   const router = useRouter();
@@ -37,6 +92,20 @@ function EditorContent() {
   const [previewHtml, setPreviewHtml] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingArticle, setLoadingArticle] = useState(!!editId);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [attemptedSave, setAttemptedSave] = useState(false);
+  const [initialSnapshot, setInitialSnapshot] = useState(() =>
+    serializeDraft(
+      buildDraft({
+        title: "",
+        summary: "",
+        content: "",
+        coverImage: "",
+        tags: [],
+      }),
+    ),
+  );
 
   const redirectToAuth = useCallback((reason: "unauthorized" | "expired") => {
     logout();
@@ -53,7 +122,18 @@ function EditorContent() {
         setSummary(article.summary);
         setContent(article.content);
         setCoverImage(article.coverImage || "");
-        setTags(article.tags);
+        setTags(normalizeTags(article.tags));
+        setInitialSnapshot(
+          serializeDraft(
+            buildDraft({
+              title: article.title,
+              summary: article.summary,
+              content: article.content,
+              coverImage: article.coverImage || "",
+              tags: article.tags,
+            }),
+          ),
+        );
       }
     } finally {
       setLoadingArticle(false);
@@ -65,17 +145,78 @@ function EditorContent() {
   }, [loadArticle]);
 
   useEffect(() => {
-    if (preview && content) {
-      renderMarkdown(content).then(setPreviewHtml);
+    if (!preview) {
+      return;
     }
+
+    const previewSource = content.trim();
+    if (!previewSource) {
+      setPreviewHtml("");
+      return;
+    }
+
+    let cancelled = false;
+    renderMarkdown(previewSource).then((html) => {
+      if (!cancelled) {
+        setPreviewHtml(html);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [preview, content]);
 
-  const handleAddTag = () => {
-    const tag = tagInput.trim();
-    if (tag && !tags.includes(tag)) {
-      setTags([...tags, tag]);
+  const currentDraft = buildDraft({
+    title,
+    summary,
+    content,
+    coverImage,
+    tags,
+  });
+  const validationErrors = getValidationErrors(currentDraft);
+  const hasUnsavedChanges =
+    serializeDraft(currentDraft) !== initialSnapshot || tagInput.trim().length > 0;
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      return;
     }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  const confirmDiscardChanges = useCallback(() => {
+    if (!hasUnsavedChanges) {
+      return true;
+    }
+
+    return window.confirm("当前有未保存的内容，确定要离开编辑页吗？");
+  }, [hasUnsavedChanges]);
+
+  const handleAddTag = () => {
+    const tag = normalizeTag(tagInput);
+    if (!tag) {
+      setTagError("标签不能为空");
+      return;
+    }
+
+    if (tags.some((value) => value.toLowerCase() === tag.toLowerCase())) {
+      setTagError(`标签“${tag}”已存在`);
+      return;
+    }
+
+    setTags((prev) => [...prev, tag]);
     setTagInput("");
+    setTagError(null);
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent) => {
@@ -86,32 +227,49 @@ function EditorContent() {
   };
 
   const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
+    setTags((prev) => prev.filter((t) => t !== tag));
   };
 
   const handleSave = async () => {
-    if (!token || !title.trim() || !content.trim()) return;
+    const draft = buildDraft({
+      title,
+      summary,
+      content,
+      coverImage,
+      tags,
+    });
+    const nextValidationErrors = getValidationErrors(draft);
+
+    setAttemptedSave(true);
+    setSaveError(null);
+
+    if (!token || nextValidationErrors.title || nextValidationErrors.content) {
+      return;
+    }
+
     setSaving(true);
     try {
       const data = {
-        title: title.trim(),
-        summary: summary.trim(),
-        content: content.trim(),
-        coverImage: coverImage.trim() || undefined,
-        tags,
+        title: draft.title,
+        summary: draft.summary,
+        content: draft.content,
+        coverImage: draft.coverImage || undefined,
+        tags: draft.tags,
       };
       if (editId) {
         await api.articles.update(Number(editId), data, token);
       } else {
         await api.articles.create(data, token);
       }
+      setInitialSnapshot(serializeDraft(draft));
       router.push("/admin");
     } catch (error) {
       if (isAuthError(error)) {
         redirectToAuth("expired");
         return;
       }
-      alert("保存失败，请重试");
+
+      setSaveError("保存失败，请重试，当前输入内容已保留。");
     } finally {
       setSaving(false);
     }
@@ -159,6 +317,11 @@ function EditorContent() {
           <div className="flex items-center gap-4">
             <Link
               href="/admin"
+              onClick={(event) => {
+                if (!confirmDiscardChanges()) {
+                  event.preventDefault();
+                }
+              }}
               className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeft size={14} />
@@ -186,7 +349,7 @@ function EditorContent() {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !title.trim() || !content.trim()}
+              disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
             >
               {saving ? (
@@ -199,15 +362,31 @@ function EditorContent() {
           </div>
         </div>
 
+        {(saveError || (attemptedSave && (validationErrors.title || validationErrors.content))) && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            role="alert"
+          >
+            {saveError || "请先修正标题和正文的必填项后再保存。"}
+          </motion.div>
+        )}
+
         <div className="space-y-5">
           {/* Title */}
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="文章标题"
-            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-lg font-semibold transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          />
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章标题"
+              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-lg font-semibold transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            />
+            {attemptedSave && validationErrors.title && (
+              <p className="text-sm text-destructive">{validationErrors.title}</p>
+            )}
+          </div>
 
           {/* Summary */}
           <textarea
@@ -249,7 +428,12 @@ function EditorContent() {
               <input
                 type="text"
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={(e) => {
+                  setTagInput(e.target.value);
+                  if (tagError && e.target.value.trim()) {
+                    setTagError(null);
+                  }
+                }}
                 onKeyDown={handleTagKeyDown}
                 placeholder="添加标签，按回车确认"
                 className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
@@ -262,24 +446,34 @@ function EditorContent() {
                 <Plus size={16} />
               </button>
             </div>
+            {tagError && <p className="mt-2 text-sm text-destructive">{tagError}</p>}
           </div>
 
           {/* Content / Preview */}
           {preview ? (
             <div className="min-h-[400px] rounded-lg border border-border bg-card p-6">
-              <div
-                className="prose prose-neutral dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+              {currentDraft.content ? (
+                <div
+                  className="prose prose-neutral dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">预览内容为空，先输入正文再查看。</p>
+              )}
             </div>
           ) : (
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="使用 Markdown 编写文章内容..."
-              rows={20}
-              className="w-full resize-y rounded-lg border border-border bg-background px-4 py-3 font-mono text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-            />
+            <div className="space-y-2">
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="使用 Markdown 编写文章内容..."
+                rows={20}
+                className="w-full resize-y rounded-lg border border-border bg-background px-4 py-3 font-mono text-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              {attemptedSave && validationErrors.content && (
+                <p className="text-sm text-destructive">{validationErrors.content}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
