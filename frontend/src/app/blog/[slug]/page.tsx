@@ -204,7 +204,7 @@ export default function BlogDetailPage({
             </div>
           )}
 
-          <aside className="hidden xl:absolute xl:left-[calc(100%+2rem)] xl:top-0 xl:block xl:w-56">
+          <aside className="hidden xl:absolute xl:top-0 xl:bottom-0 xl:left-[calc(100%+2rem)] xl:block xl:w-56">
             <TableOfContents items={tocItems} />
           </aside>
         </div>
