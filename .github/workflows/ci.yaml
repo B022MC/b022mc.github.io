@@ -233,6 +233,16 @@ jobs:
             ${{ steps.manifests.outputs.base }}
             BASE
 
+            k3s kubectl apply -f - <<'MIDDLEWARE_CORE'
+            ${{ steps.manifests.outputs.middleware_core }}
+            MIDDLEWARE_CORE
+
+            k3s kubectl -n blog delete job mysql-init-schema --ignore-not-found
+            k3s kubectl apply -f - <<'MIDDLEWARE_INIT'
+            ${{ steps.manifests.outputs.middleware_init }}
+            MIDDLEWARE_INIT
+            k3s kubectl -n blog wait --for=condition=complete job/mysql-init-schema --timeout=5m
+
             k3s kubectl apply -f - <<'BACKEND'
             ${{ steps.manifests.outputs.backend_services }}
             BACKEND
