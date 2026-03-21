@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fetchArticle } from "@/lib/api";
+import { buildSiteUrl, SITE_NAME } from "@/lib/site";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,16 +28,37 @@ export async function generateMetadata({
     return { title: "文章不存在" };
   }
 
+  const canonicalPath = `/blog/${article.slug}`;
+
   return {
     title: article.title,
     description: article.summary,
+    alternates: {
+      canonical: canonicalPath,
+    },
     openGraph: {
       title: article.title,
       description: article.summary,
       type: "article",
+      url: buildSiteUrl(canonicalPath),
+      siteName: SITE_NAME,
       publishedTime: article.createdAt,
       modifiedTime: article.updatedAt,
       tags: article.tags,
+      images: article.coverImage
+        ? [
+            {
+              url: article.coverImage,
+              alt: article.title,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: article.coverImage ? "summary_large_image" : "summary",
+      title: article.title,
+      description: article.summary,
+      images: article.coverImage ? [article.coverImage] : undefined,
     },
   };
 }

@@ -1,9 +1,5 @@
 import { fetchArticles } from "@/lib/api";
-
-const SITE_URL =
-  process.env.SITE_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://b022mc.cn";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 export async function GET() {
   const { items: articles } = await fetchArticles(1, 50);
@@ -25,9 +21,9 @@ export async function GET() {
   const feed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>b022mc's Blog</title>
+    <title>${SITE_NAME}</title>
     <link>${SITE_URL}</link>
-    <description>Personal blog - thoughts on code, tech, and life.</description>
+    <description>${SITE_DESCRIPTION}</description>
     <language>zh-CN</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
