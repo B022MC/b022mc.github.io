@@ -100,7 +100,7 @@ export function TableOfContents({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="sticky top-24 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-sm"
+      className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-sm"
     >
       <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {list}
